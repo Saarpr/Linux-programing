@@ -1,10 +1,21 @@
 #include <errno.h>
 #include <poll.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/socket.h>
 #include <sys/inotify.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <time.h>
+
+#define PORT 10000
+
+
 
 void apache_print(char *dir, char *file, char *event, char *time) {
     FILE *apache = fopen("/var/www/html/index.html", "a+");
@@ -27,7 +38,23 @@ void format_time(char *output){
 static void handle_events(int fd, int *wd, int argc, char *argv[])
 {
 
-  char buf[4096]
+  int sock ,nsent;
+  struct sockaddr_in s = {0};
+  s.sin_family = AF_INET;
+  s.sin_port = htons(PORT);
+  s.sin_addr.s_addr = htons("127.0.0.2");
+
+  sock = socket(AF_INET,SOCK_DGRAM,0);
+
+  if(connect(sock,(struct sockaddr*)&s, sizeof(s))<0){
+    perror("connect");
+    return 1;
+  }
+
+  printf("Successfully connected. \n");
+  char buf[4096];
+  char message[2000];
+
       __attribute__ ((aligned(__alignof__(struct inotify_event))));
   const struct inotify_event *event;
   int i;
@@ -64,15 +91,35 @@ static void handle_events(int fd, int *wd, int argc, char *argv[])
 
       /* Print event type */
 
-      if (event->mask & IN_OPEN)
+      if (event->mask & IN_OPEN){
         apache_print(argv[i],event->name,"IN_OPEN: ",time);
         printf("IN_OPEN: ");
-      if (event->mask & IN_CLOSE_NOWRITE)
+        sprintf( message, "FILE ACCESSED: %s\nACCESS: %s\nTIME OF ACCESS: %s\n",event->name, "IN_OPEN", time );
+        if ((nsent = send(sock,message,sizeof(message),0))<0){
+          perror("recv");
+          return 1;
+        }
+      }
+      if (event->mask & IN_CLOSE_NOWRITE){
         apache_print(argv[i],event->name,"IN_CLOSE_NOWRITE: ",time);
         printf("IN_CLOSE_NOWRITE: ");
-      if (event->mask & IN_CLOSE_WRITE)
+        sprintf( message, "FILE ACCESSED: %s\nACCESS: %s\nTIME OF ACCESS: %s\n",event->name, "IN_CLOSE_NOWRITE", time );
+        if ((nsent = send(sock,message,sizeof(message),0))<0){
+          perror("recv");
+          return 1;
+        }
+
+      }
+      if (event->mask & IN_CLOSE_WRITE){
         apache_print(argv[i],event->name,"IN_CLOSE_WRITE: ",time);
         printf("IN_CLOSE_WRITE: ");
+        sprintf( message, "FILE ACCESSED: %s\nACCESS: %s\nTIME OF ACCESS: %s\n",event->name, "IN_CLOSE_WRITE", time );
+        if ((nsent = send(sock,message,sizeof(message),0))<0){
+          perror("recv");
+          return 1;
+        }
+
+      }
 
       /* Print the name of the watched directory */
 
@@ -100,8 +147,11 @@ static void handle_events(int fd, int *wd, int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+
   char buf;
   int fd, i, poll_num;
+
+
   int *wd;
   nfds_t nfds;
   struct pollfd fds[2];
