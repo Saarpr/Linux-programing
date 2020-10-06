@@ -13,16 +13,49 @@
 #include <unistd.h>
 #include <time.h>
 
-#define PORT 10000
 
+/////////////////////////////DEFINE//////////////////////////////
 
+#define PORT     8080 
+#define MAXLINE 1024 
+
+/////////////////////////////PARAMS//////////////////////////////
+typedef struct params{
+char* _dir;
+char* _ip;
+}params;
+
+/////////////////////////////FUNC//////////////////////////////
+
+void args_parser(int argc, char* argv[], params *par){
+  int opt; 
+  // put ':' in the starting of the 
+  // string so that program can  
+  //distinguish between '?' and ':'  
+  while((opt = getopt(argc, argv, "d:i:")) != -1)  
+  {  
+    switch(opt)  
+      {  
+      case 'i':
+        par->_ip = (char*)malloc(128*sizeof(char));
+        strcpy(par->_ip, optarg);
+        break;  
+      case 'd':  
+        par->_dir = (char*)malloc(128*sizeof(char));
+        strcpy(par->_dir, optarg);
+        break;  
+      default:  
+        printf("unknown option: %c\n", optopt); 
+        exit(EXIT_FAILURE);  
+      }  
+    }  
+  }
 
 void apache_print(char *dir, char *file, char *event, char *time) {
     FILE *apache = fopen("/var/www/html/index.html", "a+");
     fprintf(apache, "<h1> directory: %s file name: %s event %s time: %s </h1>", dir, file, event, time);
     fclose(apache);
 }
-
 
 void format_time(char *output){
     time_t rawtime;
@@ -35,21 +68,29 @@ void format_time(char *output){
 }
 
 
-static void handle_events(int fd, int *wd, int argc, char *argv[])
+const void handle_events(int fd, int *wd, params *par)
 {
 
-  int sock ,nsent;
-  struct sockaddr_in s = {0};
-  s.sin_family = AF_INET;
-  s.sin_port = htons(PORT);
-  s.sin_addr.s_addr = htons("127.0.0.2");
+  int sockfd; 
+  char buffer[MAXLINE]; 
+  char *hello = "Hello from client"; 
+  struct sockaddr_in servaddr; 
+  if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
+    perror("socket creation failed"); 
+    exit(EXIT_FAILURE); 
+  } 
 
-  sock = socket(AF_INET,SOCK_DGRAM,0);
+  memset(&servaddr, 0, sizeof(servaddr)); 
+  // Filling server information 
+  servaddr.sin_family = AF_INET; 
+  servaddr.sin_port = htons(PORT); 
+  servaddr.sin_addr.s_addr = INADDR_ANY; 
+    
+  int n, nsent; 
 
-  if(connect(sock,(struct sockaddr*)&s, sizeof(s))<0){
-    perror("connect");
-    return 1;
-  }
+  sendto(sockfd, (const char *)hello, strlen(hello), 
+    MSG_CONFIRM, (const struct sockaddr *) &servaddr,  
+        sizeof(servaddr)); 
 
   printf("Successfully connected. \n");
   char buf[4096];
@@ -64,7 +105,6 @@ static void handle_events(int fd, int *wd, int argc, char *argv[])
   /* Loop while events can be read from inotify file descriptor. */
 
   for (;;) {
-
     /* Read some events. */
 
     len = read(fd, buf, sizeof buf);
@@ -73,86 +113,76 @@ static void handle_events(int fd, int *wd, int argc, char *argv[])
       exit(EXIT_FAILURE);
     }
 
-    /* If the nonblocking read() found no events to read, then
-       it returns -1 with errno set to EAGAIN. In that case,
-       we exit the loop. */
-
-    if (len <= 0)
-      break;
-
     /* Loop over all events in the buffer */
 
     for (ptr = buf; ptr < buf + len;
          ptr += sizeof(struct inotify_event) + event->len) {
+
+
+         if(connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
+      {
+        printf("\n Error : Connect Failed \n");
+        exit(0);
+      }
+
 
       char time[50];
       format_time(time);
       event = (const struct inotify_event *) ptr;
 
       /* Print event type */
-
       if (event->mask & IN_OPEN){
-        apache_print(argv[i],event->name,"IN_OPEN: ",time);
+        apache_print(par->_dir,event->name,"IN_OPEN: ",time);
         printf("IN_OPEN: ");
         sprintf( message, "FILE ACCESSED: %s\nACCESS: %s\nTIME OF ACCESS: %s\n",event->name, "IN_OPEN", time );
-        if ((nsent = send(sock,message,sizeof(message),0))<0){
-          perror("recv");
-          return 1;
-        }
+        printf("%s\n",message);
+        sendto(sockfd, (const char *)message, strlen(message), 
+    MSG_CONFIRM, (const struct sockaddr *) &servaddr,  
+        sizeof(servaddr)); 
       }
       if (event->mask & IN_CLOSE_NOWRITE){
-        apache_print(argv[i],event->name,"IN_CLOSE_NOWRITE: ",time);
+        apache_print(par->_dir,event->name,"IN_CLOSE_NOWRITE: ",time);
         printf("IN_CLOSE_NOWRITE: ");
         sprintf( message, "FILE ACCESSED: %s\nACCESS: %s\nTIME OF ACCESS: %s\n",event->name, "IN_CLOSE_NOWRITE", time );
-        if ((nsent = send(sock,message,sizeof(message),0))<0){
-          perror("recv");
-          return 1;
-        }
+        printf("%s\n",message);
+            sendto(sockfd, (const char *)message, strlen(message), 
+    MSG_CONFIRM, (const struct sockaddr *) &servaddr,  
+        sizeof(servaddr)); 
 
       }
       if (event->mask & IN_CLOSE_WRITE){
-        apache_print(argv[i],event->name,"IN_CLOSE_WRITE: ",time);
+        apache_print(par->_dir,event->name,"IN_CLOSE_WRITE: ",time);
         printf("IN_CLOSE_WRITE: ");
         sprintf( message, "FILE ACCESSED: %s\nACCESS: %s\nTIME OF ACCESS: %s\n",event->name, "IN_CLOSE_WRITE", time );
-        if ((nsent = send(sock,message,sizeof(message),0))<0){
-          perror("recv");
-          return 1;
-        }
+        printf("%s\n",message);
+               sendto(sockfd, (const char *)message, strlen(message), 
+    MSG_CONFIRM, (const struct sockaddr *) &servaddr,  
+        sizeof(servaddr)); 
 
       }
-
-      /* Print the name of the watched directory */
-
-      for (i = 1; i < argc; ++i) {
-        if (wd[i] == event->wd) {
-          printf("%s/", argv[i]);
-          break;
-        }
-      }
-
-      /* Print the name of the file */
-
-      if (event->len)
-        printf("%s", event->name);
-
-      /* Print type of filesystem object */
-
-      if (event->mask & IN_ISDIR)
-        printf(" [directory]\n");
-      else
-        printf(" [file]\n");
     }
   }
+    close(sockfd); 
+
 }
+
+
+
+/////////////////////////////MAIN//////////////////////////////
+
 
 int main(int argc, char *argv[])
 {
+  params par;
+
+  args_parser(argc, argv, &par);
+
+  printf("dir:  %s\n ip : %s\n",par._dir,par._ip );
+
 
   char buf;
   int fd, i, poll_num;
-
-
-  int *wd;
+  int wd;
   nfds_t nfds;
   struct pollfd fds[2];
 
@@ -160,9 +190,6 @@ int main(int argc, char *argv[])
     printf("Usage: %s PATH [PATH ...]\n", argv[0]);
     exit(EXIT_FAILURE);
   }
-
-  printf("Press ENTER key to terminate.\n");
-
   /* Create the file descriptor for accessing the inotify API */
 
   fd = inotify_init1(IN_NONBLOCK);
@@ -170,27 +197,16 @@ int main(int argc, char *argv[])
     perror("inotify_init1");
     exit(EXIT_FAILURE);
   }
-
-  /* Allocate memory for watch descriptors */
-
-  wd = calloc(argc, sizeof(int));
-  if (wd == NULL) {
-    perror("calloc");
-    exit(EXIT_FAILURE);
-  }
-
   /* Mark directories for events
      - file was opened
      - file was closed */
 
-  for (i = 1; i < argc; i++) {
-    wd[i] = inotify_add_watch(fd, argv[i], IN_OPEN | IN_CLOSE);
-    if (wd[i] == -1) {
-      fprintf(stderr, "Cannot watch '%s'\n", argv[i]);
+    wd= inotify_add_watch(fd, par._dir, IN_OPEN | IN_CLOSE);
+    if (wd == -1) {
+      fprintf(stderr, "Cannot watch '%s'\n", par._dir);
       perror("inotify_add_watch");
       exit(EXIT_FAILURE);
     }
-  }
 
   /* Prepare for polling */
 
@@ -234,7 +250,7 @@ int main(int argc, char *argv[])
 
         /* Inotify events are available */
 
-        handle_events(fd, wd, argc, argv);
+        handle_events(fd, wd, &par);
       }
     }
   }
