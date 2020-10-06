@@ -68,7 +68,7 @@ void format_time(char *output){
 }
 
 
-const void handle_events(int fd, int *wd, params *par)
+static void handle_events(int fd, int *wd, params *par)
 {
 
   int sockfd; 
