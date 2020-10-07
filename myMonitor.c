@@ -23,12 +23,16 @@
 typedef struct params{
 char* _dir;
 char* _ip;
+char** _argv;
+int _argc;
 }params;
 
 /////////////////////////////FUNC//////////////////////////////
 
 void args_parser(int argc, char* argv[], params *par){
   int opt; 
+  par->_argv = argv;
+  par->_argc = argc;
   // put ':' in the starting of the 
   // string so that program can  
   //distinguish between '?' and ':'  
@@ -171,14 +175,8 @@ static void handle_events(int fd, int *wd, params *par)
 /////////////////////////////MAIN//////////////////////////////
 
 
-int main(int argc, char *argv[])
+void inotify_task(params *par)
 {
-  params par;
-
-  args_parser(argc, argv, &par);
-
-  printf("dir:  %s\n ip : %s\n",par._dir,par._ip );
-
 
   char buf;
   int fd, i, poll_num;
@@ -186,8 +184,8 @@ int main(int argc, char *argv[])
   nfds_t nfds;
   struct pollfd fds[2];
 
-  if (argc < 2) {
-    printf("Usage: %s PATH [PATH ...]\n", argv[0]);
+  if (par->_argc < 2) {
+    printf("Usage: %s PATH [PATH ...]\n", par->_argv[0]);
     exit(EXIT_FAILURE);
   }
   /* Create the file descriptor for accessing the inotify API */
@@ -201,9 +199,9 @@ int main(int argc, char *argv[])
      - file was opened
      - file was closed */
 
-    wd= inotify_add_watch(fd, par._dir, IN_OPEN | IN_CLOSE);
+    wd= inotify_add_watch(fd, par->_dir, IN_OPEN | IN_CLOSE);
     if (wd == -1) {
-      fprintf(stderr, "Cannot watch '%s'\n", par._dir);
+      fprintf(stderr, "Cannot watch '%s'\n", par->_dir);
       perror("inotify_add_watch");
       exit(EXIT_FAILURE);
     }
@@ -262,5 +260,5 @@ int main(int argc, char *argv[])
   close(fd);
 
   free(wd);
-  exit(EXIT_SUCCESS);
+  // exit(EXIT_SUCCESS);
 }
