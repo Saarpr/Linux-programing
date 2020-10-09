@@ -13,13 +13,11 @@
 #include <unistd.h>
 #include <time.h>
 
-
-/////////////////////////////DEFINE//////////////////////////////
-
 #define PORT     8080 
 #define MAXLINE 1024 
 
-/////////////////////////////PARAMS//////////////////////////////
+/////////////////////////////PARAMS STRUCT//////////////////////////////
+
 typedef struct params{
 char* _dir;
 char* _ip;
@@ -55,7 +53,7 @@ void args_parser(int argc, char* argv[], params *par){
 void apache_print(const char *dir, const char *file, const char *event, const char *time) {
 
     FILE *apache = fopen("/var/www/html/index.html", "a+");
-    fprintf(apache, "<h1> directory: %s file name: %s event %s time: %s </h1>", dir, file, event, time);
+    fprintf(apache, "<h1> Directory: %s </h1><h2> File name: %s </h2><h2> Event: %s </h2> <h2>Time: %s </h2><br>-------------------------------------------------------<br>", dir, file, event, time);
     fclose(apache);
 }
 
@@ -66,17 +64,14 @@ void format_time(char *output){
     time ( &rawtime );
     timeinfo = localtime ( &rawtime );
 
-    sprintf(output, "[%d %d %d %d:%d:%d]",timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year + 1900, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+    sprintf(output, "[%d/%d/%d - %d:%d:%d]",timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year + 1900, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
 }
 
-
-static void handle_events(int fd, int wd, params *par)
-
-{
+static void handle_events(int fd, int wd, params *par){
 
   int sockfd; 
   char buffer[MAXLINE]; 
-  char *hello = "Hello from client"; 
+  // char *hello = "Hello from client"; 
   struct sockaddr_in servaddr; 
   if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
     perror("socket creation failed"); 
@@ -91,9 +86,9 @@ static void handle_events(int fd, int wd, params *par)
     
   int n, nsent; 
 
-  sendto(sockfd, (const char *)hello, strlen(hello), 
-    MSG_CONFIRM, (const struct sockaddr *) &servaddr,  
-        sizeof(servaddr)); 
+  // sendto(sockfd, (const char *)hello, strlen(hello), 
+  //   MSG_CONFIRM, (const struct sockaddr *) &servaddr,  
+  //       sizeof(servaddr)); 
 
   printf("Successfully connected. \n");
   char buf[4096];
@@ -137,18 +132,18 @@ static void handle_events(int fd, int wd, params *par)
       /* Print event type */
       if (event->mask & IN_OPEN){
         apache_print(par->_dir,event->name,"IN_OPEN: ",time);
-        printf("IN_OPEN: ");
+        // printf("IN_OPEN: ");
         sprintf( message, "FILE ACCESSED: %s\nACCESS: %s\nTIME OF ACCESS: %s\n",event->name, "IN_OPEN", time );
-        printf("%s\n",message);
+        // printf("%s\n",message);
         sendto(sockfd, (const char *)message, strlen(message), 
     MSG_CONFIRM, (const struct sockaddr *) &servaddr,  
         sizeof(servaddr)); 
       }
       if (event->mask & IN_CLOSE_NOWRITE){
         apache_print(par->_dir,event->name,"IN_CLOSE_NOWRITE: ",time);
-        printf("IN_CLOSE_NOWRITE: ");
+        // printf("IN_CLOSE_NOWRITE: ");
         sprintf( message, "FILE ACCESSED: %s\nACCESS: %s\nTIME OF ACCESS: %s\n",event->name, "IN_CLOSE_NOWRITE", time );
-        printf("%s\n",message);
+        // printf("%s\n",message);
             sendto(sockfd, (const char *)message, strlen(message), 
     MSG_CONFIRM, (const struct sockaddr *) &servaddr,  
         sizeof(servaddr)); 
@@ -156,9 +151,9 @@ static void handle_events(int fd, int wd, params *par)
       }
       if (event->mask & IN_CLOSE_WRITE){
         apache_print(par->_dir,event->name,"IN_CLOSE_WRITE: ",time);
-        printf("IN_CLOSE_WRITE: ");
+        // printf("IN_CLOSE_WRITE: ");
         sprintf( message, "FILE ACCESSED: %s\nACCESS: %s\nTIME OF ACCESS: %s\n",event->name, "IN_CLOSE_WRITE", time );
-        printf("%s\n",message);
+        // printf("%s\n",message);
                sendto(sockfd, (const char *)message, strlen(message), 
     MSG_CONFIRM, (const struct sockaddr *) &servaddr,  
         sizeof(servaddr)); 
@@ -218,7 +213,7 @@ void inotify_task(params *par)
 
   /* Wait for events and/or terminal input */
 
-  printf("Listening for events.\n");
+  printf("Sending UDP to port %d.\n",PORT);
   while (1) {
     poll_num = poll(fds, nfds, -1);
     if (poll_num == -1) {
@@ -249,12 +244,8 @@ void inotify_task(params *par)
       }
     }
   }
-
-  printf("Listening for events stopped.\n");
-
+  // printf("Listening for events stopped.\n");
   /* Close inotify file descriptor */
-
   close(fd);
-
   // exit(EXIT_SUCCESS);
 }

@@ -1,6 +1,4 @@
-
 #include <libcli.h>
-
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -13,7 +11,6 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
-
 
 #define PORT_T 8090
 #define LEN 100
@@ -30,25 +27,17 @@ pthread_t telnet;
 char **backtrace_arr;
 int num_of_traces;
 char flag;
-
-
-
 sem_t semaphore; 
 void *backtrace_buffer[LEN];
-
-
 unsigned int regular_count = 0;
 unsigned int debug_regular = 0;
 
-
-
-//--------------------------From libCli library------------------------
-
+//--------------------------From libCli library------------------------//
 
 int init_backtrace(struct cli_def *cli, UNUSED(const char *command), UNUSED(char *argv[]), UNUSED(int argc)) {
 
     flag = 1;
-    cli_print(cli, "backtrace command returned %d addresses\n", num_of_traces);
+    cli_print(cli, "Backtrace command returned %d addresses\n", num_of_traces);
 
     for (int j = 0; j < num_of_traces; j++) {
         cli_print(cli, "%s\n", backtrace_arr[j]);
@@ -86,10 +75,8 @@ void pc(UNUSED(struct cli_def *cli), const char *string) {
     printf("%s\n", string);
 }
 
-
 void run_child(int x) {
     struct cli_def *cli;
-
 
     cli = cli_init();
     cli_set_banner(cli, "Type command: backtrace ");
@@ -120,7 +107,6 @@ void run_child(int x) {
     cli_done(cli);
 }
 
-///***************************************************//
 void* telnet_task (void *args){
     int s,x;
     struct sockaddr_in addr;
@@ -162,8 +148,6 @@ void* telnet_task (void *args){
 
     return 0;
 }
-
-////////////////////////////////////////////////////////////////////////////////
 
 void  __attribute__ ((no_instrument_function))  __cyg_profile_func_enter (void *this_fn,
                                                                           void *call_site)
