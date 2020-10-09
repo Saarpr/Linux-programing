@@ -16,13 +16,14 @@
 
 #include "myMonitor.c"
 
+pthread_t telnet;
+
 
 int main(int argc, char *argv[])
 {
   params par;
 
   pthread_t inotify;
-  // pthread_t telnet;
 
 
 
