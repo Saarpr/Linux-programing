@@ -56,6 +56,7 @@ void args_parser(int argc, char* argv[], params *par){
   }
 
 void apache_print(const char *dir, const char *file, const char *event, const char *time) {
+
     FILE *apache = fopen("/var/www/html/index.html", "a+");
     fprintf(apache, "<h1> directory: %s file name: %s event %s time: %s </h1>", dir, file, event, time);
     fclose(apache);
@@ -73,6 +74,7 @@ void format_time(char *output){
 
 
 static void handle_events(int fd, int wd, params *par)
+
 {
 
   int sockfd; 
@@ -101,6 +103,7 @@ static void handle_events(int fd, int wd, params *par)
   char message[2000];
 
       __attribute__ ((aligned(__alignof__(struct inotify_event))))
+
   const struct inotify_event *event;
   int i;
   ssize_t len;
@@ -249,6 +252,7 @@ void inotify_task(params *par)
         /* Inotify events are available */
 
         handle_events(fd, wd, par);
+
       }
     }
   }
