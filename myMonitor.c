@@ -33,9 +33,6 @@ void args_parser(int argc, char* argv[], params *par){
   int opt; 
   par->_argv = argv;
   par->_argc = argc;
-  // put ':' in the starting of the 
-  // string so that program can  
-  //distinguish between '?' and ':'  
   while((opt = getopt(argc, argv, "d:i:")) != -1)  
   {  
     switch(opt)  
@@ -169,10 +166,6 @@ static void handle_events(int fd, int wd, params *par)
     close(sockfd); 
 
 }
-
-
-
-/////////////////////////////MAIN//////////////////////////////
 
 
 void inotify_task(params *par)
